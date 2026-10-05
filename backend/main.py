@@ -3,34 +3,32 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import openai
-import google.generativeai as genai
 from dotenv import load_dotenv
 
-# Load environment variables if a .env file is present locally
 load_dotenv()
 
 app = FastAPI(title="Baza Bible AI Backend", version="1.0.0")
 
-# Configure CORS so your frontend can communicate safely with the backend
+# Enable CORS for your frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust to your frontend domain in production if needed
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize API Keys from Environment Variables
+# Configure OpenRouter using OpenAI's Python client
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
+# OpenRouter uses the OpenAI client pointing to a custom base URL
+client = openai.OpenAI(
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1"
+)
 
-# Request body validation schema using Pydantic
 class ChatRequest(BaseModel):
     prompt: str
-    model: str = "gemini"  # Default model selector ("gemini" or "openai")
 
 @app.get("/")
 def read_root():
@@ -41,16 +39,28 @@ def read_root():
 
 @app.post("/api/chat")
 def chat_endpoint(request: ChatRequest):
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenRouter API Key is not configured on the server.")
+    
     try:
-        # Example logic route for your AI interactions
-        if not request.prompt:
-            raise HTTPException(status_code=400, detail="Prompt cannot be empty.")
-            
-        # You can expand this to call Google GenAI or OpenRouter/OpenAI based on the request
+        # You can use any free or open-source model available on OpenRouter, e.g., "meta-llama/llama-3-8b-instruct:free"
+        completion = client.chat.completions.create(
+            model="meta-llama/llama-3-8b-instruct:free",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are Baza Bible AI, a knowledgeable, respectful, and helpful assistant specialized in answering questions about the Bible, scripture, and theology."
+                },
+                {
+                    "role": "user", 
+                    "content": request.prompt
+                }
+            ]
+        )
+        
         return {
             "status": "success",
-            "model_used": request.model,
-            "response": f"Baza Bible AI processed your prompt: '{request.prompt}'"
+            "response": completion.choices[0].message.content
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
