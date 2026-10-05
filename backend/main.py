@@ -2,14 +2,13 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import openai
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = FastAPI(title="Baza Bible AI Backend", version="1.0.0")
 
-# Enable CORS for your frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,49 +17,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure OpenRouter using OpenAI's Python client
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-
-# OpenRouter uses the OpenAI client pointing to a custom base URL
-client = openai.OpenAI(
-    api_key=OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"
-)
 
 class ChatRequest(BaseModel):
     prompt: str
 
 @app.get("/")
 def read_root():
+    return {"status": "online", "message": "Baza Bible AI API is running successfully!"}
+
+@app.get("/api/daily")
+def get_daily_verse(language: str = "English"):
     return {
-        "status": "online",
-        "message": "Baza Bible AI API is running successfully!"
+        "verse": "John 3:16",
+        "text": "For God so loved the world, that he gave his only begotten Son...",
+        "language": language
     }
 
-@app.post("/api/chat")
-def chat_endpoint(request: ChatRequest):
+@app.post("/api/ask")
+def ask_endpoint(request: ChatRequest):
     if not OPENROUTER_API_KEY:
         raise HTTPException(status_code=500, detail="OpenRouter API Key is not configured on the server.")
     
     try:
-        # You can use any free or open-source model available on OpenRouter, e.g., "meta-llama/llama-3-8b-instruct:free"
-        completion = client.chat.completions.create(
-            model="meta-llama/llama-3-8b-instruct:free",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are Baza Bible AI, a knowledgeable, respectful, and helpful assistant specialized in answering questions about the Bible, scripture, and theology."
-                },
-                {
-                    "role": "user", 
-                    "content": request.prompt
-                }
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "meta-llama/llama-3-8b-instruct:free",
+            "messages": [
+                {"role": "system", "content": "You are Baza Bible AI, a knowledgeable, respectful assistant specialized in the Bible."},
+                {"role": "user", "content": request.prompt}
             ]
-        )
+        }
+        
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"OpenRouter Error: {response.text}")
+            
+        data = response.json()
+        answer = data["choices"][0]["message"]["content"]
         
         return {
             "status": "success",
-            "response": completion.choices[0].message.content
+            "response": answer
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
