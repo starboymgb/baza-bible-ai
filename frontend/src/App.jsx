@@ -88,6 +88,8 @@ const UI_TEXT = {
   }
 };
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
 export default function App() {
   const [question, setQuestion] = useState('');
   const [translation, setTranslation] = useState('ESV');
@@ -98,7 +100,6 @@ export default function App() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [copied, setCopied] = useState(false);
   
-  // Theme State (Dark / Light)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('baza_theme') || 'dark';
   });
@@ -107,7 +108,6 @@ export default function App() {
     localStorage.setItem('baza_theme', theme);
   }, [theme]);
 
-  // Daily Devotional State
   const [dailyDevo, setDailyDevo] = useState(null);
   const [dailyLoading, setDailyLoading] = useState(true);
 
@@ -120,10 +120,9 @@ export default function App() {
     localStorage.setItem('baza_history', JSON.stringify(history));
   }, [history]);
 
-  // Fetch Daily Devotional whenever language changes
   useEffect(() => {
     setDailyLoading(true);
-    fetch(`http://localhost:8000/api/daily?language=${language}`)
+    fetch(`${BACKEND_URL}/api/daily?language=${language}`)
       .then(res => res.json())
       .then(data => {
         if (!data.error) setDailyDevo(data);
@@ -132,7 +131,6 @@ export default function App() {
       .finally(() => setDailyLoading(false));
   }, [language]);
 
-  // Automatically re-run the search in the new language if results are currently displayed
   useEffect(() => {
     if (result && result.question && result.language !== language) {
       handleAsk(null, result.question);
@@ -163,14 +161,14 @@ export default function App() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/ask', {
+      const response = await fetch(`${BACKEND_URL}/api/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: query, translation, language }),
+        body: JSON.stringify({ prompt: query, translation, language }),
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Something went wrong');
+      if (!response.ok) throw new Error(data.detail || 'Something went wrong');
 
       const newItem = { question: query, translation, language, ...data, id: Date.now() };
       setResult(newItem);
@@ -224,7 +222,7 @@ export default function App() {
     if (!result) return;
     const shareText = `✨ *"${result.verse_text}"*\n— *${result.verse_reference}* (${result.translation || translation})\n\n🙏 *${t.guidance}:*\n${result.pastoral_explanation}\n\n_Shared via Baza Bible AI_`;
     const encodedText = encodeURIComponent(shareText);
-    window.open(`https://api.whatsapp.com/send?text=${encodedText}`, '_blank');
+    window.open(`[https://api.whatsapp.com/send?text=$](https://api.whatsapp.com/send?text=$){encodedText}`, '_blank');
   };
 
   const clearHistory = () => {
@@ -238,12 +236,11 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} flex flex-col items-center p-4 sm:p-8 transition-colors duration-200`}>
-      {/* Header with Theme Toggle */}
       <header className="w-full max-w-4xl flex items-center justify-between mb-6 mt-4">
-        <div className="w-10"></div> {/* Spacer for alignment */}
+        <div className="w-10"></div>
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
-            <BookOpen className="w-8 h-8 text-amber-500" />
+            <BookOpen className="w-8 h-8 text-amber-500"/>
             <h1 className="text-3xl font-bold tracking-tight">{t.title}</h1>
           </div>
           <p className={`${isDark ? 'text-slate-400' : 'text-slate-600'} text-sm`}>{t.subtitle}</p>
@@ -253,16 +250,15 @@ export default function App() {
           className={`p-2.5 rounded-xl border transition ${isDark ? 'bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-800' : 'bg-white border-slate-200 text-amber-600 hover:bg-slate-100 shadow-sm'}`}
           title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
-          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          {isDark ? <Sun className="w-5 h-5"/> : <Moon className="w-5 h-5"/>}
         </button>
       </header>
 
-      {/* Daily Devotional Banner */}
       <div className={`w-full max-w-4xl mb-6 ${isDark ? 'bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 border-amber-500/20' : 'bg-gradient-to-r from-white via-amber-50/50 to-amber-100/40 border-amber-500/30 shadow-sm'} border rounded-2xl p-5 relative overflow-hidden transition-colors duration-200`}>
         <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Sun className="w-4 h-4 text-amber-500" />
+            <Sun className="w-4 h-4 text-amber-500"/>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-500">{t.dailyTitle}</span>
           </div>
           {dailyDevo && language !== 'Kinyarwanda' && (
@@ -270,14 +266,14 @@ export default function App() {
               onClick={() => handleSpeak(`${dailyDevo.verse_reference}. "${dailyDevo.verse_text}". ${dailyDevo.devotional}`)}
               className={`text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1 ${isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} px-2.5 py-1 rounded-lg border transition`}
             >
-              <Volume2 className="w-3.5 h-3.5" /> {t.listen}
+              <Volume2 className="w-3.5 h-3.5"/> {t.listen}
             </button>
           )}
         </div>
 
         {dailyLoading ? (
           <div className="flex items-center justify-center py-4 text-slate-400 text-xs gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> ...
+            <Loader2 className="w-4 h-4 animate-spin text-amber-500"/> ...
           </div>
         ) : dailyDevo ? (
           <div>
@@ -290,15 +286,14 @@ export default function App() {
       </div>
 
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Sidebar History */}
         <div className={`md:col-span-1 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-2xl p-4 flex flex-col h-[520px] transition-colors duration-200`}>
           <div className={`flex items-center justify-between pb-3 border-b ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-100 text-slate-600'} mb-3`}>
             <h2 className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-              <History className="w-4 h-4 text-amber-500" /> {t.historyTitle}
+              <History className="w-4 h-4 text-amber-500"/> {t.historyTitle}
             </h2>
             {history.length > 0 && (
               <button onClick={clearHistory} className="text-slate-400 hover:text-red-500 transition" title="Clear History">
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4"/>
               </button>
             )}
           </div>
@@ -327,7 +322,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Main Content Area */}
         <div className={`md:col-span-2 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} border rounded-2xl p-6 shadow-xl flex flex-col transition-colors duration-200`}>
           <form onSubmit={(e) => handleAsk(e)} className="space-y-4">
             <div>
@@ -343,10 +337,9 @@ export default function App() {
               />
             </div>
 
-            {/* Quick Topic Chips */}
             <div>
               <div className={`flex items-center gap-1 text-[11px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'} mb-1.5`}>
-                <Tag className="w-3 h-3 text-amber-500" /> {t.quickTopics}
+                <Tag className="w-3 h-3 text-amber-500"/> {t.quickTopics}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {topics.map((topic, idx) => (
@@ -362,10 +355,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* Language & Translation Selectors Row */}
             <div className={`flex flex-wrap items-center justify-between gap-3 pt-2 ${isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50 border-slate-200'} p-3 rounded-xl border transition-colors duration-200`}>
               <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-amber-500" />
+                <Globe className="w-4 h-4 text-amber-500"/>
                 <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium`}>{t.language}</span>
                 <select
                   value={language}
@@ -402,7 +394,7 @@ export default function App() {
                 disabled={loading}
                 className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold px-6 py-2.5 rounded-xl flex items-center gap-2 transition disabled:opacity-50 text-sm shadow-lg cursor-pointer"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4"/>}
                 {loading ? t.searching : t.askButton}
               </button>
             </div>
@@ -423,13 +415,12 @@ export default function App() {
                     {result.verse_reference} ({result.translation || translation})
                   </span>
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    {/* WhatsApp Share Button */}
                     <button
                       onClick={handleWhatsAppShare}
                       className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900 text-emerald-400 border-slate-800 hover:bg-slate-800' : 'bg-white text-emerald-600 border-slate-200 hover:bg-slate-50 shadow-sm'} transition flex items-center gap-1 text-xs`}
                       title="Share to WhatsApp"
                     >
-                      <MessageCircle className="w-4 h-4 text-emerald-500" />
+                      <MessageCircle className="w-4 h-4 text-emerald-500"/>
                       <span className="hidden sm:inline">{t.whatsapp}</span>
                     </button>
 
@@ -438,7 +429,7 @@ export default function App() {
                       className={`p-1.5 rounded-lg border ${isDark ? 'bg-slate-900 text-amber-400 border-slate-800 hover:bg-slate-800' : 'bg-white text-amber-600 border-slate-200 hover:bg-slate-50 shadow-sm'} transition flex items-center gap-1 text-xs`}
                       title={t.copy}
                     >
-                      {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <Check className="w-4 h-4 text-green-500"/> : <Copy className="w-4 h-4"/>}
                       <span className="hidden sm:inline">{copied ? t.copied : t.copy}</span>
                     </button>
 
@@ -452,11 +443,11 @@ export default function App() {
                         }`}
                         title={isSpeaking ? t.stop : t.listen}
                       >
-                        {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                        {isSpeaking ? <VolumeX className="w-4 h-4"/> : <Volume2 className="w-4 h-4"/>}
                         <span className="hidden sm:inline">{isSpeaking ? t.stop : t.listen}</span>
                       </button>
                     )}
-                    <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500/20" />
+                    <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500/20"/>
                   </div>
                 </div>
                 <p className={`text-base italic font-serif ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>"{result.verse_text}"</p>
@@ -464,7 +455,7 @@ export default function App() {
 
               <div>
                 <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'} mb-2 flex items-center gap-1.5`}>
-                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <Sparkles className="w-4 h-4 text-amber-500"/>
                   {t.guidance}
                 </h3>
                 <p className={`${isDark ? 'text-slate-300 bg-slate-950/40 border-slate-800/60' : 'text-slate-700 bg-slate-50 border-slate-200'} leading-relaxed p-4 rounded-xl border text-sm`}>
@@ -477,7 +468,7 @@ export default function App() {
       </div>
 
       <footer className={`mt-8 text-xs ${isDark ? 'text-slate-600' : 'text-slate-400'} flex items-center gap-1`}>
-        Built with faith and code <Heart className="w-3 h-3 text-red-500 fill-red-500" />
+        Built with faith and code <Heart className="w-3 h-3 text-red-500 fill-red-500"/>
       </footer>
     </div>
   );

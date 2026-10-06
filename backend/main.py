@@ -1,4 +1,5 @@
 import os
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,6 +22,8 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 class ChatRequest(BaseModel):
     prompt: str
+    translation: str = "ESV"
+    language: str = "English"
 
 @app.get("/")
 def read_root():
@@ -29,8 +32,9 @@ def read_root():
 @app.get("/api/daily")
 def get_daily_verse(language: str = "English"):
     return {
-        "verse": "John 3:16",
-        "text": "For God so loved the world, that he gave his only begotten Son...",
+        "verse_reference": "John 3:16",
+        "verse_text": "For God so loved the world, that he gave his only begotten Son...",
+        "devotional": "His boundless love offers us eternal life and a fresh start every single day.",
         "language": language
     }
 
@@ -46,10 +50,19 @@ def ask_endpoint(request: ChatRequest):
             "HTTP-Referer": "https://baza-bible-ai.com",
             "X-Title": "Baza Bible AI"
         }
+        
+        system_prompt = (
+            f"You are Baza Bible AI, a knowledgeable and respectful assistant specialized in the Bible. "
+            f"Answer the user's question with a relevant Bible verse using the {request.translation} translation, "
+            f"and provide a pastoral explanation in {request.language}. "
+            f"You MUST return a valid JSON object with EXACTLY these keys: "
+            f"\"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
+        )
+        
         payload = {
             "model": "openrouter/free",
             "messages": [
-                {"role": "system", "content": "You are Baza Bible AI, a knowledgeable, respectful assistant specialized in the Bible."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": request.prompt}
             ]
         }
@@ -60,11 +73,24 @@ def ask_endpoint(request: ChatRequest):
             raise HTTPException(status_code=response.status_code, detail=f"OpenRouter Error: {response.text}")
             
         data = response.json()
-        answer = data["choices"][0]["message"]["content"]
+        raw_answer = data["choices"][0]["message"]["content"]
+        
+        # Clean up code blocks if the model outputs them
+        cleaned_answer = raw_answer.strip()
+        if cleaned_answer.startswith("```json"):
+            cleaned_answer = cleaned_answer[7:]
+        if cleaned_answer.startswith("```"):
+            cleaned_answer = cleaned_answer[3:]
+        if cleaned_answer.endswith("```"):
+            cleaned_answer = cleaned_answer[:-3]
+            
+        parsed_answer = json.loads(cleaned_answer.strip())
         
         return {
-            "status": "success",
-            "response": answer
+            "verse_reference": parsed_answer.get("verse_reference", "John 3:16"),
+            "verse_text": parsed_answer.get("verse_text", "For God so loved the world..."),
+            "pastoral_explanation": parsed_answer.get("pastoral_explanation", raw_answer),
+            "translation": request.translation
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
