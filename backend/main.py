@@ -31,12 +31,27 @@ def read_root():
 
 @app.get("/api/daily")
 def get_daily_verse(language: str = "English"):
-    return {
-        "verse_reference": "John 3:16",
-        "verse_text": "For God so loved the world, that he gave his only begotten Son...",
-        "devotional": "His boundless love offers us eternal life and a fresh start every single day.",
-        "language": language
-    }
+    if language == "Kinyarwanda":
+        return {
+            "verse_reference": "Yohana 3:16",
+            "verse_text": "Kuko Imana yakunze isi cyane, ku buryo yatanze Umwana wayo w'ikinege...",
+            "devotional": "Urukundo rwayo rutagereranywa ruduha ubuzima bw'iteka n'amahirwe mashya buri munsi.",
+            "language": language
+        }
+    elif language == "Français":
+        return {
+            "verse_reference": "Jean 3:16",
+            "verse_text": "Car Dieu a tant aimé le monde qu'il a donné son Fils unique...",
+            "devotional": "Son amour infini nous offre la vie éternelle et un nouveau départ chaque jour.",
+            "language": language
+        }
+    else:
+        return {
+            "verse_reference": "John 3:16",
+            "verse_text": "For God so loved the world, that he gave his only begotten Son...",
+            "devotional": "His boundless love offers us eternal life and a fresh start every single day.",
+            "language": language
+        }
 
 @app.post("/api/ask")
 def ask_endpoint(request: ChatRequest):
@@ -53,8 +68,9 @@ def ask_endpoint(request: ChatRequest):
         
         system_prompt = (
             f"You are Baza Bible AI, a knowledgeable and respectful assistant specialized in the Bible. "
-            f"Answer the user's question with a relevant Bible verse using the {request.translation} translation, "
-            f"and provide a pastoral explanation in {request.language}. "
+            f"Answer the user's question with a relevant Bible verse using the {request.translation} translation "
+            f"(if the translation is in Kinyarwanda like 'Bibiliya Yera' or French like 'Louis Segond', provide the text in that language). "
+            f"Provide the pastoral explanation entirely in {request.language}. "
             f"You MUST return a valid JSON object with EXACTLY these keys: "
             f"\"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
         )
@@ -75,7 +91,6 @@ def ask_endpoint(request: ChatRequest):
         data = response.json()
         raw_answer = data["choices"][0]["message"]["content"]
         
-        # Clean up code blocks if the model outputs them
         cleaned_answer = raw_answer.strip()
         if cleaned_answer.startswith("```json"):
             cleaned_answer = cleaned_answer[7:]

@@ -131,9 +131,10 @@ export default function App() {
       .finally(() => setDailyLoading(false));
   }, [language]);
 
+  // Automatically re-query if language changes and we have an active question displayed
   useEffect(() => {
-    if (result && result.question && result.language !== language) {
-      handleAsk(null, result.question);
+    if (result && result.question) {
+      handleAsk(null, result.question, language);
     }
   }, [language]);
 
@@ -148,7 +149,7 @@ export default function App() {
   const t = UI_TEXT[language] || UI_TEXT.English;
   const topics = QUICK_TOPICS[language] || QUICK_TOPICS.English;
 
-  const handleAsk = async (e, overrideQuestion = null) => {
+  const handleAsk = async (e, overrideQuestion = null, targetLang = language) => {
     if (e) e.preventDefault();
     const query = overrideQuestion || question;
     if (!query.trim()) return;
@@ -164,13 +165,13 @@ export default function App() {
       const response = await fetch(`${BACKEND_URL}/api/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: query, translation, language }),
+        body: JSON.stringify({ prompt: query, translation, language: targetLang }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Something went wrong');
 
-      const newItem = { question: query, translation, language, ...data, id: Date.now() };
+      const newItem = { question: query, translation, language: targetLang, ...data, id: Date.now() };
       setResult(newItem);
       setHistory(prev => [newItem, ...prev.filter(item => item.question !== query)]);
     } catch (err) {
@@ -182,7 +183,7 @@ export default function App() {
 
   const handleTopicClick = (topic) => {
     setQuestion(topic);
-    handleAsk(null, topic);
+    handleAsk(null, topic, language);
   };
 
   const handleSpeak = (textToRead) => {
