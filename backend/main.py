@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI(title="Baza Bible AI Backend", version="1.0.0")
+app = FastAPI(title="Baza Bible AI Backend", version="1.0.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,22 +69,24 @@ def ask_endpoint(request: ChatRequest):
         
         system_prompt = (
             f"You are Baza Bible AI, an expert biblical assistant. "
-            f"The user's preferred language is {request.language} and the chosen translation is {request.translation}. "
-            f"When the translation is 'Bibiliya Yera' or language is 'Kinyarwanda', you MUST output the exact, traditional words of the authentic Kinyarwanda Bible (Bibiliya Yera), maintaining precise wording and orthography without paraphrasing. "
-            f"Provide the 'pastoral_explanation' entirely in {request.language}. "
+            f"User Language: {request.language}, Translation: {request.translation}. "
+            f"CRITICAL RULE FOR KINYARWANDA / BIBILIYA YERA: When translation is 'Bibiliya Yera' or language is 'Kinyarwanda', you MUST quote the exact, traditional words of the official Kinyarwanda Bible (Bibiliya Yera) with precise orthography (e.g., proper use of 'cyane', 'w'ikinege', etc.) without modifying or modernizing the wording. "
+            f"Provide the 'pastoral_explanation' in fluent {request.language}. "
             f"CRITICAL: Return ONLY a valid JSON object with EXACTLY these keys: "
             f"\"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
         )
         
         payload = {
-            "model": "openrouter/free",
+            "model": "google/gemini-flash-1.5",  # Faster and highly accurate model
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": request.prompt}
-            ]
+            ],
+            "temperature": 0.2,  # Lower temperature for precision and speed
+            "max_tokens": 800
         }
         
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=20)
         
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"OpenRouter Error: {response.text}")
