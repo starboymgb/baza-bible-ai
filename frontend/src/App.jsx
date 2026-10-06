@@ -108,6 +108,18 @@ export default function App() {
     localStorage.setItem('baza_theme', theme);
   }, [theme]);
 
+  // Automatically adjust default translation when language changes
+  const handleLanguageChange = (newLang) => {
+    setLanguage(newLang);
+    if (newLang === 'Kinyarwanda') {
+      setTranslation('Bibiliya Yera');
+    } else if (newLang === 'Français') {
+      setTranslation('Louis Segond');
+    } else {
+      setTranslation('ESV');
+    }
+  };
+
   const [dailyDevo, setDailyDevo] = useState(null);
   const [dailyLoading, setDailyLoading] = useState(true);
 
@@ -143,7 +155,7 @@ export default function App() {
   const topicsMap = QUICK_TOPICS_MAP[language] || QUICK_TOPICS_MAP.English;
   const topics = Object.keys(topicsMap);
 
-  const handleAsk = async (e, overrideQuestion = null, targetLang = language) => {
+  const handleAsk = async (e, overrideQuestion = null, targetLang = language, targetTrans = translation) => {
     if (e) e.preventDefault();
     const query = overrideQuestion || question;
     if (!query.trim()) return;
@@ -159,13 +171,13 @@ export default function App() {
       const response = await fetch(`${BACKEND_URL}/api/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: query, translation, language: targetLang }),
+        body: JSON.stringify({ prompt: query, translation: targetTrans, language: targetLang }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Something went wrong');
 
-      const newItem = { question: query, translation, language: targetLang, ...data, id: Date.now() };
+      const newItem = { question: query, translation: targetTrans, language: targetLang, ...data, id: Date.now() };
       setResult(newItem);
       setHistory(prev => [newItem, ...prev.filter(item => item.question !== query)]);
     } catch (err) {
@@ -178,7 +190,7 @@ export default function App() {
   const handleTopicClick = (displayTopic) => {
     const actualQuery = topicsMap[displayTopic] || displayTopic;
     setQuestion(actualQuery);
-    handleAsk(null, actualQuery, language);
+    handleAsk(null, actualQuery, language, translation);
   };
 
   const handleSpeak = (textToRead) => {
@@ -197,7 +209,7 @@ export default function App() {
     utterance.rate = 0.95;
 
     if (language === 'Français') utterance.lang = 'fr-FR';
-    else if (language === 'Kinyarwanda') utterance.lang = 'sw-TZ'; // fallback speech voice
+    else if (language === 'Kinyarwanda') utterance.lang = 'sw-TZ';
     else utterance.lang = 'en-US';
 
     utterance.onend = () => setIsSpeaking(false);
@@ -358,7 +370,7 @@ export default function App() {
                 <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'} font-medium`}>{t.language}</span>
                 <select
                   value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
                   className={`bg-transparent border ${isDark ? 'border-slate-700 text-amber-400' : 'border-slate-300 text-amber-600'} rounded-lg px-2 py-1 text-xs font-medium focus:outline-none cursor-pointer`}
                 >
                   <option value="English" className={isDark ? 'bg-slate-900' : 'bg-white'}>English</option>

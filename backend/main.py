@@ -35,7 +35,7 @@ def get_daily_verse(language: str = "English"):
     if language == "Kinyarwanda":
         return {
             "verse_reference": "Yohana 3:16",
-            "verse_text": "Kuko Imana yakunze isi cyane, ku buryo yatanze Umwana wayo w'ikinege kugira ngo umwizera wese atarimbuka, ahubwo abone ubuzima bw'iteka.",
+            "verse_text": "Kuko Imana yakunze isi cyane, ku buryo yatanze Umwana wayo w'ikinege, kugira ngo umwizera wese atarimbuka, ahubwo abone ubuzima bw'iteka.",
             "devotional": "Urukundo rwayo rutagereranywa ruduha ubuzima bw'iteka n'amahirwe mashya buri munsi.",
             "language": language
         }
@@ -68,11 +68,10 @@ def ask_endpoint(request: ChatRequest):
         }
         
         system_prompt = (
-            f"You are Baza Bible AI, a knowledgeable and respectful assistant specialized in the Bible. "
-            f"The user's preferred language is {request.language} and their requested Bible translation is {request.translation}. "
-            f"Understand the user's prompt (even if it's in another language) and provide a relevant Bible verse. "
-            f"The \"verse_text\" must be in the specified translation/language (if language is Kinyarwanda, provide verse text in Kinyarwanda like Bibiliya Yera; if Français, provide it in French). "
-            f"Provide the \"pastoral_explanation\" entirely in {request.language}. "
+            f"You are Baza Bible AI, an expert biblical assistant. "
+            f"The user's preferred language is {request.language} and the chosen translation is {request.translation}. "
+            f"When the translation is 'Bibiliya Yera' or language is 'Kinyarwanda', you MUST output the exact, traditional words of the authentic Kinyarwanda Bible (Bibiliya Yera), maintaining precise wording and orthography without paraphrasing. "
+            f"Provide the 'pastoral_explanation' entirely in {request.language}. "
             f"CRITICAL: Return ONLY a valid JSON object with EXACTLY these keys: "
             f"\"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
         )
@@ -110,14 +109,14 @@ def ask_endpoint(request: ChatRequest):
                 parsed_answer = json.loads(match.group(0))
             else:
                 parsed_answer = {
-                    "verse_reference": "Romans 8:28",
-                    "verse_text": "And we know that for those who love God all things work together for good...",
+                    "verse_reference": "Abafilipi 4:6-7",
+                    "verse_text": "Ntimukagire icyo mwiganyira, ahubwo ibyo mushaka byose bimenyerewe n'Imana...",
                     "pastoral_explanation": raw_answer
                 }
         
         return {
-            "verse_reference": parsed_answer.get("verse_reference", "Romans 8:28"),
-            "verse_text": parsed_answer.get("verse_text", "And we know..."),
+            "verse_reference": parsed_answer.get("verse_reference", "Abafilipi 4:6-7"),
+            "verse_text": parsed_answer.get("verse_text", ""),
             "pastoral_explanation": parsed_answer.get("pastoral_explanation", raw_answer),
             "translation": request.translation
         }
