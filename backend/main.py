@@ -35,21 +35,21 @@ def get_daily_verse(language: str = "English"):
     if language == "Kinyarwanda":
         return {
             "verse_reference": "Yohana 3:16",
-            "verse_text": "Kuko Imana yakunze isi cyane, ku buryo yatanze Umwana wayo w'ikinege...",
+            "verse_text": "Kuko Imana yakunze isi cyane, ku buryo yatanze Umwana wayo w'ikinege kugira ngo umwizera wese atarimbuka, ahubwo abone ubuzima bw'iteka.",
             "devotional": "Urukundo rwayo rutagereranywa ruduha ubuzima bw'iteka n'amahirwe mashya buri munsi.",
             "language": language
         }
     elif language == "Français":
         return {
             "verse_reference": "Jean 3:16",
-            "verse_text": "Car Dieu a tant aimé le monde qu'il a donné son Fils unique...",
+            "verse_text": "Car Dieu a tant aimé le monde qu'il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu'il ait la vie éternelle.",
             "devotional": "Son amour infini nous offre la vie éternelle et un nouveau départ chaque jour.",
             "language": language
         }
     else:
         return {
             "verse_reference": "John 3:16",
-            "verse_text": "For God so loved the world, that he gave his only begotten Son...",
+            "verse_text": "For God so loved the world, that he gave his only begotten Son, that whoever believes in him should not perish but have eternal life.",
             "devotional": "His boundless love offers us eternal life and a fresh start every single day.",
             "language": language
         }
@@ -69,10 +69,12 @@ def ask_endpoint(request: ChatRequest):
         
         system_prompt = (
             f"You are Baza Bible AI, a knowledgeable and respectful assistant specialized in the Bible. "
-            f"Answer the user's question with a relevant Bible verse using the {request.translation} translation. "
-            f"Provide the pastoral explanation entirely in {request.language}. "
-            f"CRITICAL: Return ONLY a valid JSON object, with no extra text or markdown formatting before or after. "
-            f"Use these exact keys: \"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
+            f"The user's preferred language is {request.language} and their requested Bible translation is {request.translation}. "
+            f"Understand the user's prompt (even if it's in another language) and provide a relevant Bible verse. "
+            f"The \"verse_text\" must be in the specified translation/language (if language is Kinyarwanda, provide verse text in Kinyarwanda like Bibiliya Yera; if Français, provide it in French). "
+            f"Provide the \"pastoral_explanation\" entirely in {request.language}. "
+            f"CRITICAL: Return ONLY a valid JSON object with EXACTLY these keys: "
+            f"\"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
         )
         
         payload = {
@@ -91,7 +93,6 @@ def ask_endpoint(request: ChatRequest):
         data = response.json()
         raw_answer = data["choices"][0]["message"]["content"]
         
-        # Clean up code blocks if present
         cleaned_answer = raw_answer.strip()
         if cleaned_answer.startswith("```json"):
             cleaned_answer = cleaned_answer[7:]
@@ -104,12 +105,10 @@ def ask_endpoint(request: ChatRequest):
         try:
             parsed_answer = json.loads(cleaned_answer)
         except json.JSONDecodeError:
-            # Fallback regex extraction if model included extra chatter
             match = re.search(r'\{.*\}', cleaned_answer, re.DOTALL)
             if match:
                 parsed_answer = json.loads(match.group(0))
             else:
-                # Ultimate fallback if everything fails
                 parsed_answer = {
                     "verse_reference": "Romans 8:28",
                     "verse_text": "And we know that for those who love God all things work together for good...",
@@ -118,7 +117,7 @@ def ask_endpoint(request: ChatRequest):
         
         return {
             "verse_reference": parsed_answer.get("verse_reference", "Romans 8:28"),
-            "verse_text": parsed_answer.get("verse_text", "And we know that for those who love God..."),
+            "verse_text": parsed_answer.get("verse_text", "And we know..."),
             "pastoral_explanation": parsed_answer.get("pastoral_explanation", raw_answer),
             "translation": request.translation
         }

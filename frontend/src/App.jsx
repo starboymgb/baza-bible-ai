@@ -1,31 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Sparkles, Send, Loader2, Heart, History, Trash2, Bookmark, Volume2, VolumeX, Tag, Sun, Moon, Copy, Check, Globe, MessageCircle } from 'lucide-react';
 
-const QUICK_TOPICS = {
-  English: [
-    "Overcoming anxiety and fear",
-    "How to pray effectively",
-    "Finding strength in difficult times",
-    "Dealing with temptation",
-    "Seeking God's guidance for the future",
-    "Finding peace when overwhelmed"
-  ],
-  Kinyarwanda: [
-    "Gutsinda ubwoba n'impungenge",
-    "Uko wakisunga Imana mu masengesho",
-    "Kubona imbaraga mu bihe bikomeye",
-    "Kurwanya ibishuko",
-    "Gushaka ubuyobozi bw'Imana mu hazaza",
-    "Kubona amahoro y'umutima"
-  ],
-  Français: [
-    "Surmonter l'anxiété et la peur",
-    "Comment prier efficacement",
-    "Trouver la force dans les épreuves",
-    "Faire face à la tentation",
-    "Chercher la direction de Dieu",
-    "Trouver la paix intérieure"
-  ]
+const QUICK_TOPICS_MAP = {
+  English: {
+    "Overcoming anxiety and fear": "Overcoming anxiety and fear",
+    "How to pray effectively": "How to pray effectively",
+    "Finding strength in difficult times": "Finding strength in difficult times",
+    "Dealing with temptation": "Dealing with temptation",
+    "Seeking God's guidance for the future": "Seeking God's guidance for the future",
+    "Finding peace when overwhelmed": "Finding peace when overwhelmed"
+  },
+  Kinyarwanda: {
+    "Gutsinda ubwoba n'impungenge": "Gutsinda ubwoba n'impungenge",
+    "Uko wakisunga Imana mu masengesho": "Uko wakisunga Imana mu masengesho",
+    "Kubona imbaraga mu bihe bikomeye": "Kubona imbaraga mu bihe bikomeye",
+    "Kurwanya ibishuko": "Kurwanya ibishuko",
+    "Gushaka ubuyobozi bw'Imana mu hazaza": "Gushaka ubuyobozi bw'Imana mu hazaza",
+    "Kubona amahoro y'umutima": "Kubona amahoro y'umutima"
+  },
+  Français: {
+    "Surmonter l'anxiété et la peur": "Surmonter l'anxiété et la peur",
+    "Comment prier efficacement": "Comment prier efficacement",
+    "Trouver la force dans les épreuves": "Trouver la force dans les épreuves",
+    "Faire face à la tentation": "Faire face à la tentation",
+    "Chercher la direction de Dieu": "Chercher la direction de Dieu",
+    "Trouver la paix intérieure": "Trouver la paix intérieure"
+  }
 };
 
 const UI_TEXT = {
@@ -131,13 +131,6 @@ export default function App() {
       .finally(() => setDailyLoading(false));
   }, [language]);
 
-  // Automatically re-query if language changes and we have an active question displayed
-  useEffect(() => {
-    if (result && result.question) {
-      handleAsk(null, result.question, language);
-    }
-  }, [language]);
-
   useEffect(() => {
     return () => {
       if ('speechSynthesis' in window) {
@@ -147,7 +140,8 @@ export default function App() {
   }, []);
 
   const t = UI_TEXT[language] || UI_TEXT.English;
-  const topics = QUICK_TOPICS[language] || QUICK_TOPICS.English;
+  const topicsMap = QUICK_TOPICS_MAP[language] || QUICK_TOPICS_MAP.English;
+  const topics = Object.keys(topicsMap);
 
   const handleAsk = async (e, overrideQuestion = null, targetLang = language) => {
     if (e) e.preventDefault();
@@ -181,9 +175,10 @@ export default function App() {
     }
   };
 
-  const handleTopicClick = (topic) => {
-    setQuestion(topic);
-    handleAsk(null, topic, language);
+  const handleTopicClick = (displayTopic) => {
+    const actualQuery = topicsMap[displayTopic] || displayTopic;
+    setQuestion(actualQuery);
+    handleAsk(null, actualQuery, language);
   };
 
   const handleSpeak = (textToRead) => {
@@ -202,6 +197,7 @@ export default function App() {
     utterance.rate = 0.95;
 
     if (language === 'Français') utterance.lang = 'fr-FR';
+    else if (language === 'Kinyarwanda') utterance.lang = 'sw-TZ'; // fallback speech voice
     else utterance.lang = 'en-US';
 
     utterance.onend = () => setIsSpeaking(false);
@@ -262,7 +258,7 @@ export default function App() {
             <Sun className="w-4 h-4 text-amber-500"/>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-500">{t.dailyTitle}</span>
           </div>
-          {dailyDevo && language !== 'Kinyarwanda' && (
+          {dailyDevo && (
             <button
               onClick={() => handleSpeak(`${dailyDevo.verse_reference}. "${dailyDevo.verse_text}". ${dailyDevo.devotional}`)}
               className={`text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1 ${isDark ? 'bg-slate-950/50 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} px-2.5 py-1 rounded-lg border transition`}
@@ -434,20 +430,18 @@ export default function App() {
                       <span className="hidden sm:inline">{copied ? t.copied : t.copy}</span>
                     </button>
 
-                    {language !== 'Kinyarwanda' && (
-                      <button
-                        onClick={() => handleSpeak(`${result.verse_reference}. "${result.verse_text}". ${result.pastoral_explanation}`)}
-                        className={`p-1.5 rounded-lg border transition flex items-center gap-1 text-xs ${
-                          isSpeaking 
-                            ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse' 
-                            : isDark ? 'bg-slate-900 text-amber-400 border-slate-800 hover:bg-slate-800' : 'bg-white text-amber-600 border-slate-200 hover:bg-slate-50 shadow-sm'
-                        }`}
-                        title={isSpeaking ? t.stop : t.listen}
-                      >
-                        {isSpeaking ? <VolumeX className="w-4 h-4"/> : <Volume2 className="w-4 h-4"/>}
-                        <span className="hidden sm:inline">{isSpeaking ? t.stop : t.listen}</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleSpeak(`${result.verse_reference}. "${result.verse_text}". ${result.pastoral_explanation}`)}
+                      className={`p-1.5 rounded-lg border transition flex items-center gap-1 text-xs ${
+                        isSpeaking 
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse' 
+                          : isDark ? 'bg-slate-900 text-amber-400 border-slate-800 hover:bg-slate-800' : 'bg-white text-amber-600 border-slate-200 hover:bg-slate-50 shadow-sm'
+                      }`}
+                      title={isSpeaking ? t.stop : t.listen}
+                    >
+                      {isSpeaking ? <VolumeX className="w-4 h-4"/> : <Volume2 className="w-4 h-4"/>}
+                      <span className="hidden sm:inline">{isSpeaking ? t.stop : t.listen}</span>
+                    </button>
                     <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500/20"/>
                   </div>
                 </div>
