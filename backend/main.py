@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -68,11 +69,10 @@ def ask_endpoint(request: ChatRequest):
         
         system_prompt = (
             f"You are Baza Bible AI, a knowledgeable and respectful assistant specialized in the Bible. "
-            f"Answer the user's question with a relevant Bible verse using the {request.translation} translation "
-            f"(if the translation is in Kinyarwanda like 'Bibiliya Yera' or French like 'Louis Segond', provide the text in that language). "
+            f"Answer the user's question with a relevant Bible verse using the {request.translation} translation. "
             f"Provide the pastoral explanation entirely in {request.language}. "
-            f"You MUST return a valid JSON object with EXACTLY these keys: "
-            f"\"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
+            f"CRITICAL: Return ONLY a valid JSON object, with no extra text or markdown formatting before or after. "
+            f"Use these exact keys: \"verse_reference\", \"verse_text\", and \"pastoral_explanation\"."
         )
         
         payload = {
@@ -91,6 +91,7 @@ def ask_endpoint(request: ChatRequest):
         data = response.json()
         raw_answer = data["choices"][0]["message"]["content"]
         
+        # Clean up code blocks if present
         cleaned_answer = raw_answer.strip()
         if cleaned_answer.startswith("```json"):
             cleaned_answer = cleaned_answer[7:]
@@ -98,12 +99,26 @@ def ask_endpoint(request: ChatRequest):
             cleaned_answer = cleaned_answer[3:]
         if cleaned_answer.endswith("```"):
             cleaned_answer = cleaned_answer[:-3]
+        cleaned_answer = cleaned_answer.strip()
             
-        parsed_answer = json.loads(cleaned_answer.strip())
+        try:
+            parsed_answer = json.loads(cleaned_answer)
+        except json.JSONDecodeError:
+            # Fallback regex extraction if model included extra chatter
+            match = re.search(r'\{.*\}', cleaned_answer, re.DOTALL)
+            if match:
+                parsed_answer = json.loads(match.group(0))
+            else:
+                # Ultimate fallback if everything fails
+                parsed_answer = {
+                    "verse_reference": "Romans 8:28",
+                    "verse_text": "And we know that for those who love God all things work together for good...",
+                    "pastoral_explanation": raw_answer
+                }
         
         return {
-            "verse_reference": parsed_answer.get("verse_reference", "John 3:16"),
-            "verse_text": parsed_answer.get("verse_text", "For God so loved the world..."),
+            "verse_reference": parsed_answer.get("verse_reference", "Romans 8:28"),
+            "verse_text": parsed_answer.get("verse_text", "And we know that for those who love God..."),
             "pastoral_explanation": parsed_answer.get("pastoral_explanation", raw_answer),
             "translation": request.translation
         }
