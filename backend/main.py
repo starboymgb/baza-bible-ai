@@ -42,10 +42,12 @@ def ask_endpoint(request: ChatRequest):
     try:
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://baza-bible-ai.com",
+            "X-Title": "Baza Bible AI"
         }
         payload = {
-            "model": "meta-llama/llama-3-8b-instruct:free",
+            "model": "openrouter/free",
             "messages": [
                 {"role": "system", "content": "You are Baza Bible AI, a knowledgeable, respectful assistant specialized in the Bible."},
                 {"role": "user", "content": request.prompt}
